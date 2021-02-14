@@ -41,6 +41,7 @@ set(SOURCES
 set(LIBRARIES
         libutils
         ${OpenCV_LIBS}
+        ${OpenMP_CXX_LIBRARIES}
         )
 
 add_library(${PROJECT_NAME} ${SOURCES})
