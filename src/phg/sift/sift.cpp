@@ -358,7 +358,7 @@ void phg::SIFT::findLocalExtremasAndDescribe(const std::vector<cv::Mat> &gaussia
                         cv::Mat img = gaussianPyramid[octave * OCTAVE_GAUSSIAN_IMAGES + localLayer];
                         std::vector<float> votes;
                         float biggestVote;
-                        int oriRadius = (int) (ORIENTATION_WINDOW_R * (1.0 + k * (localLayer - 1)));
+                        int oriRadius = (int) (ORIENTATION_WINDOW_R * pow(k, localLayer));
                         if (!buildLocalOrientationHists(img, i, j, oriRadius, votes, biggestVote))
                             continue;
 
@@ -372,7 +372,7 @@ void phg::SIFT::findLocalExtremasAndDescribe(const std::vector<cv::Mat> &gaussia
                                 rassert(kp.angle >= 0.0 && kp.angle <= 360.0, 123512412412);
 
                                 std::vector<float> descriptor;
-                                double descrSampleRadius = (DESCRIPTOR_SAMPLE_WINDOW_R * (1.0 + k * (localLayer - 1)));
+                                double descrSampleRadius = (DESCRIPTOR_SAMPLE_WINDOW_R * pow(k, localLayer));
                                 if (!buildDescriptor(img, kp.pt.x, kp.pt.y, descrSampleRadius, kp.angle, descriptor))
                                     continue;
 
