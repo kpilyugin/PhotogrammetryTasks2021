@@ -110,21 +110,18 @@ void evaluateDetection(const cv::Mat &M, double minRecall, cv::Mat img0=cv::Mat(
             } else if (method == 1) {
                 method_name = "SIFTOCV";
                 log_prefix = "[SIFTOCV] ";
-                // ORB - один из видов ключевых дескрипторов, отличается высокой скоростью и относительно неплохим качеством
-                cv::Ptr<cv::FeatureDetector> detector = cv::SIFT::create(); // здесь можно было бы поиграть с его параметрами, например выделять больше чем 500 точек, строить большее число ступеней пирамиды и т.п.
+                cv::Ptr<cv::FeatureDetector> detector = cv::SIFT::create();
                 detector->detect(img0, kps0); // детектируем ключевые точки на исходной картинке
                 detector->detect(img1, kps1); // детектируем ключевые точки на преобразованной картинке
 
                 detector->compute(img0, kps0, desc0);
                 detector->compute(img1, kps1, desc1);
             } else if (method == 2) {
-                // TODO remove 'return' and uncomment
-                return;
-//                method_name = "SIFT_MY";
-//                log_prefix = "[SIFT_MY] ";
-//                phg::SIFT mySIFT;
-//                mySIFT.detectAndCompute(img0, kps0, desc0);
-//                mySIFT.detectAndCompute(img1, kps1, desc1);
+                method_name = "SIFT_MY";
+                log_prefix = "[SIFT_MY] ";
+                phg::SIFT mySIFT;
+                mySIFT.detectAndCompute(img0, kps0, desc0);
+                mySIFT.detectAndCompute(img1, kps1, desc1);
             } else {
                 rassert(false, 13532513412); // это не проверка как часть тестирования, это проверка что число итераций в цикле и if-else ветки все еще согласованы и не разошлись
             }
