@@ -34,7 +34,7 @@ void phg::BruteforceMatcherGPU::knnMatch(const cv::Mat &query_desc,
         throw std::runtime_error("BruteforceMatcher:: knnMatch : only k = 2 supported");
     }
 
-    std::cout << "BruteforceMatcher::knnMatch : n query desc : " << query_desc.rows << ", n train desc : " << train_desc_ptr->rows << std::endl;
+    std::cout << "BruteforceMatcherGPU::knnMatch : n query desc : " << query_desc.rows << ", n train desc : " << train_desc_ptr->rows << std::endl;
 
     gpu::Device device = gpu::chooseDevice(BF_MATCHER_GPU_VERBOSE);
     if (!device.supports_opencl) {
