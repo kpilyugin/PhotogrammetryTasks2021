@@ -229,6 +229,7 @@ namespace {
             cv::Mat descriptors1, descriptors2;
             detector->detectAndCompute( img1, cv::noArray(), keypoints1, descriptors1 );
             detector->detectAndCompute( img2, cv::noArray(), keypoints2, descriptors2 );
+            std::cout << "Keypoints found: " << keypoints1.size() << ", " << keypoints2.size() << "\n";
 
             testStitching(img1, img2, keypoints1, keypoints2, descriptors1, descriptors2);
         }
@@ -238,10 +239,10 @@ namespace {
             std::cout << "testing my detector/descriptor..." << std::endl;
             std::vector<cv::KeyPoint> keypoints1, keypoints2;
             cv::Mat descriptors1, descriptors2;
-            phg::SIFT mySIFT;
+            phg::SIFT mySIFT(3, 10, 1.6);
             mySIFT.detectAndCompute(img1, keypoints1, descriptors1);
             mySIFT.detectAndCompute(img2, keypoints2, descriptors2);
-
+            std::cout << "Keypoints found: " << keypoints1.size() << ", " << keypoints2.size() << "\n";
             testStitching(img1, img2, keypoints1, keypoints2, descriptors1, descriptors2);
         }
 #endif
@@ -267,7 +268,7 @@ namespace {
                           const cv::Mat &descriptors1, const cv::Mat &descriptors2,
                           double &nn_score, double &nn2_score, double &nn_score_cv, double &nn2_score_cv,
                           double &time_my, double &time_cv, double &time_bruteforce, double &time_bruteforce_gpu,
-                          double &good_nn, double &good_ratio, double &good_clusters, double &good_ratio_and_clusters, bool do_bruteforce)
+                          double &good_nn, double &good_ratio, double &good_clusters, double &good_ratio_and_clusters, bool do_bruteforce, const char* descriptor_name)
     {
         using namespace cv;
 
@@ -376,23 +377,24 @@ namespace {
         for (int i = 0; i < (int) knn_matches_flann.size(); ++i) {
             good_matches_nn[i] = knn_matches_flann[i][0];
         }
-        drawMatches(img1, img2, keypoints1, keypoints2, good_matches_nn, "data/debug/test_matching/" + getTestSuiteName() + "_" + getTestName() + "_" + "00_matches_nn.png");
+        std::cout << "total NN matches: " << good_matches_nn.size() << "\n";
+        drawMatches(img1, img2, keypoints1, keypoints2, good_matches_nn, "data/debug/test_matching/" + getTestSuiteName() + "_" + getTestName() + "_" + + descriptor_name + "_00_matches_nn.png");
 
         #if ENABLE_MY_MATCHING
-        std::cout << "filtering matches by ratio test..." << std::endl;
         std::vector<DMatch> good_matches_ratio;
         phg::DescriptorMatcher::filterMatchesRatioTest(knn_matches_flann, good_matches_ratio);
-        drawMatches(img1, img2, keypoints1, keypoints2, good_matches_ratio, "data/debug/test_matching/" + getTestSuiteName() + "_" + getTestName() + "_" + "01_matches_ratio.png");
+        std::cout << "filtering matches by ratio test: good_matches_ratio = " << good_matches_ratio.size() << std::endl;
+        drawMatches(img1, img2, keypoints1, keypoints2, good_matches_ratio, "data/debug/test_matching/" + getTestSuiteName() + "_" + getTestName() + "_" + descriptor_name + "_01_matches_ratio.png");
 
-        std::cout << "filtering matches by clusters..." << std::endl;
         std::vector<DMatch> good_matches_clusters_only;
         phg::DescriptorMatcher::filterMatchesClusters(good_matches_nn, keypoints1, keypoints2, good_matches_clusters_only);
-        drawMatches(img1, img2, keypoints1, keypoints2, good_matches_clusters_only, "data/debug/test_matching/" + getTestSuiteName() + "_" + getTestName() + "_" + "03_matches_clusters_only.png");
+        std::cout << "filtering matches by clusters: good_matches_clusters_only = " << good_matches_clusters_only.size() << std::endl;
+        drawMatches(img1, img2, keypoints1, keypoints2, good_matches_clusters_only, "data/debug/test_matching/" + getTestSuiteName() + "_" + getTestName() + "_" + descriptor_name + "_03_matches_clusters_only.png");
 
-        std::cout << "filtering matches by ratio & clusters" << std::endl;
         std::vector<DMatch> good_matches_clusters_and_ratio;
         phg::DescriptorMatcher::filterMatchesClusters(good_matches_ratio, keypoints1, keypoints2, good_matches_clusters_and_ratio);
-        drawMatches(img1, img2, keypoints1, keypoints2, good_matches_clusters_and_ratio, "data/debug/test_matching/" + getTestSuiteName() + "_" + getTestName() + "_" + "04_matches_clusters_and_ratio.png");
+        std::cout << "filtering matches by ratio & clusters: good_matches = " << good_matches_clusters_and_ratio.size() << std::endl;
+        drawMatches(img1, img2, keypoints1, keypoints2, good_matches_clusters_and_ratio, "data/debug/test_matching/" + getTestSuiteName() + "_" + getTestName() + "_" + descriptor_name + "_04_matches_clusters_and_ratio.png");
         #else
         std::vector<DMatch> good_matches_clusters_and_ratio;
         phg::filterMatchesGMS(good_matches_nn, keypoints1, keypoints2, img1.size(), img2.size(), good_matches_clusters_and_ratio);
@@ -473,13 +475,12 @@ namespace {
                       double &nn_score, double &nn2_score, double &nn_score_cv, double &nn2_score_cv,
                       double &time_my, double &time_cv, double &time_bruteforce, double &time_bruteforce_gpu,
                       double &good_nn, double &good_ratio, double &good_clusters, double &good_ratio_and_clusters,
-                      bool do_bruteforce
-                       )
+                      bool do_bruteforce, const char* descriptor_name)
     {
         evaluateMatching(img1, img2, keypoints1, keypoints2, descriptors1, descriptors2,
                          nn_score, nn2_score, nn_score_cv, nn2_score_cv,
                          time_my, time_cv, time_bruteforce, time_bruteforce_gpu,
-                         good_nn, good_ratio, good_clusters, good_ratio_and_clusters, do_bruteforce);
+                         good_nn, good_ratio, good_clusters, good_ratio_and_clusters, do_bruteforce, descriptor_name);
 
         std::cout << "nn_score: " << nn_score << ", ";
         std::cout << "nn2_score: " << nn2_score << ", ";
@@ -509,25 +510,27 @@ namespace {
             cv::Mat descriptors1, descriptors2;
             detector->detectAndCompute( img1, cv::noArray(), keypoints1, descriptors1 );
             detector->detectAndCompute( img2, cv::noArray(), keypoints2, descriptors2 );
+            std::cout << "Keypoints found: " << keypoints1.size() << ", " << keypoints2.size() << "\n";
 
             testMatching(img1, img2, keypoints1, keypoints2, descriptors1, descriptors2,
                          nn_score, nn2_score, nn_score_cv, nn2_score_cv,
                          time_my, time_cv, time_bruteforce, time_bruteforce_gpu,
-                         good_nn, good_ratio, good_clusters, good_ratio_and_clusters, do_bruteforce);
+                         good_nn, good_ratio, good_clusters, good_ratio_and_clusters, do_bruteforce, "CV");
         }
 #if ENABLE_MY_DESCRIPTOR
         {
             std::cout << "testing my detector/descriptor..." << std::endl;
             std::vector<cv::KeyPoint> keypoints1, keypoints2;
             cv::Mat descriptors1, descriptors2;
-            phg::SIFT mySIFT;
+            phg::SIFT mySIFT(3, 10, 1.6);
             mySIFT.detectAndCompute(img1, keypoints1, descriptors1);
             mySIFT.detectAndCompute(img2, keypoints2, descriptors2);
+            std::cout << "Keypoints found: " << keypoints1.size() << ", " << keypoints2.size() << "\n";
 
             testMatching(img1, img2, keypoints1, keypoints2, descriptors1, descriptors2,
                          nn_score, nn2_score, nn_score_cv, nn2_score_cv,
                          time_my, time_cv, time_bruteforce, time_bruteforce_gpu,
-                         good_nn, good_ratio, good_clusters, good_ratio_and_clusters, do_bruteforce);
+                         good_nn, good_ratio, good_clusters, good_ratio_and_clusters, do_bruteforce, "MY");
         }
 #endif
     }
