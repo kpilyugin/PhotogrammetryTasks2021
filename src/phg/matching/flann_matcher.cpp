@@ -19,6 +19,7 @@ void phg::FlannMatcher::train(const cv::Mat &train_desc)
 
 void phg::FlannMatcher::knnMatch(const cv::Mat &query_desc, std::vector<std::vector<cv::DMatch>> &matches, int k) const
 {
+    cv::setRNGSeed(125125);
     cv::Mat indices;
     cv::Mat distances2;
     flann_index->knnSearch(query_desc, indices, distances2, k, *search_params);
