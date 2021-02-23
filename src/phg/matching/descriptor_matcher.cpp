@@ -6,7 +6,7 @@
 void phg::DescriptorMatcher::filterMatchesRatioTest(const std::vector<std::vector<cv::DMatch>> &matches,
                                                     std::vector<cv::DMatch> &filtered_matches)
 {
-    const double filter_ratio = 0.4;
+    const double filter_ratio = 0.7;
 
     filtered_matches.clear();
     for (auto& vec: matches) {

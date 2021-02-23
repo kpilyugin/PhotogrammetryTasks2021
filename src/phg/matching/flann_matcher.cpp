@@ -20,16 +20,16 @@ void phg::FlannMatcher::train(const cv::Mat &train_desc)
 void phg::FlannMatcher::knnMatch(const cv::Mat &query_desc, std::vector<std::vector<cv::DMatch>> &matches, int k) const
 {
     cv::Mat indices;
-    cv::Mat distances;
-    flann_index->knnSearch(query_desc, indices, distances, 2, *search_params);
+    cv::Mat distances2;
+    flann_index->knnSearch(query_desc, indices, distances2, k, *search_params);
     int numMatches = indices.rows;
     for (size_t i = 0; i < numMatches; ++i) {
-        int i1 = indices.at<int>(i, 0);
-        int i2 = indices.at<int>(i, 1);
-        float d1 = distances.at<float>(i, 0);
-        float d2 = distances.at<float>(i, 1);
-        matches.push_back({
-            cv::DMatch(i, i1, d1), cv::DMatch(i, i2, d2)
-        });
+        std::vector<cv::DMatch> kMatches;
+        for (size_t j = 0; j < k; j++) {
+            int idx = indices.at<int>(i, j);
+            float dist = sqrt(distances2.at<float>(i, j));
+            kMatches.emplace_back(i, idx, dist);
+        }
+        matches.push_back(kMatches);
     }
 }
