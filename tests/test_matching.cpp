@@ -20,7 +20,7 @@
 
 // TODO enable both toggles for testing custom detector & matcher
 #define ENABLE_MY_DESCRIPTOR 0
-#define ENABLE_MY_MATCHING 0
+#define ENABLE_MY_MATCHING 1
 #define ENABLE_GPU_BRUTEFORCE_MATCHER 0
 
 #if ENABLE_MY_MATCHING
@@ -127,20 +127,24 @@ namespace {
         for (int i = 0; i < (int) knn_matches.size(); ++i) {
             good_matches[i] = knn_matches[i][0];
         }
+        std::cout << "Total matches: " << good_matches.size() << "\n";
 
 #if ENABLE_MY_MATCHING
         phg::DescriptorMatcher::filterMatchesRatioTest(knn_matches, good_matches);
+        std::cout << "After ratio test filter: matches = " << good_matches.size() << "\n";
         {
             std::vector<DMatch> tmp;
             phg::DescriptorMatcher::filterMatchesClusters(good_matches, keypoints1, keypoints2, tmp);
             std::swap(tmp, good_matches);
         }
+        std::cout << "After cluster filtering: matches = " << good_matches.size() << "\n";
 #else
         {
             std::vector<DMatch> tmp;
             phg::filterMatchesGMS(good_matches, keypoints1, keypoints2, img1.size(), img2.size(), tmp);
             std::swap(tmp, good_matches);
         }
+        std::cout << "After GMS filter: matches = " << good_matches.size() << "\n";
 #endif
 
         std::vector<cv::Point2f> points1, points2;
