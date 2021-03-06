@@ -18,7 +18,7 @@
 #include "utils/test_utils.h"
 
 
-#define ENABLE_MY_SFM 0
+#define ENABLE_MY_SFM 1
 
 namespace {
 
@@ -64,9 +64,9 @@ namespace {
         std::cout << "checkEmatrixSpectralProperty: s: " << s.transpose() << std::endl;
 
         double thresh = 1e10;
-
         bool rank2 = s[0] > thresh * s[2] && s[1] > thresh * s[2];
-        bool equal = (s[0] < (1.0 + thresh) * s[1]) && (s[1] < (1.0 + thresh) * s[0]);
+        double eps = 1e-10;
+        bool equal = (s[0] < (1.0 + eps) * s[1]) && (s[1] < (1.0 + eps) * s[0]);
 
         return rank2 && equal;
     }
@@ -634,6 +634,7 @@ TEST (SFM, Resection) {
     double rms1 = matRMS(P1res, P1);
     double rms2 = matRMS(P0, P1);
 
+    std::cout << "RMS(P0Res, P0) = " << rms0 << ", RMS(P1Res, P1) = " << rms1 << ", RMS(P0, P1) = " << rms2 << "\n";
     EXPECT_LT(rms0, 0.005);
     EXPECT_LT(rms1, 0.005);
     EXPECT_LT(rms0, 0.05 * rms2);

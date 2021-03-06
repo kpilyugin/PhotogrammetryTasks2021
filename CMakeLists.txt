@@ -15,6 +15,11 @@ else()
     message(FATAL_ERROR "OpenMP not found! You need OpenMP for speedup on multicore CPUs!")
 endif()
 
+# macOS:
+# -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I/usr/local/opt/libomp/include"
+# -DOpenMP_CXX_LIB_NAMES="omp"
+# -DOpenMP_omp_LIBRARY=/usr/local/opt/libomp/lib/libomp.dylib
+
 find_package(OpenCV 4.5.1 REQUIRED)
 #      Linux:
 # скачайте Source code (opencv-4.5.1.zip) отсюда - https://github.com/opencv/opencv/releases распакуйте и скомпилируйте:
@@ -94,6 +99,7 @@ set(SOURCES ${SOURCES} src/phg/matching/cl/bruteforce_matcher_cl.h)
 set(LIBRARIES
         libutils
         ${OpenCV_LIBS}
+        ${OpenMP_CXX_LIBRARIES}
         Eigen3::Eigen
         )
 
