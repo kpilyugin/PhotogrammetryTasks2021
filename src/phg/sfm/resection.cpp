@@ -89,7 +89,7 @@ namespace {
         // https://en.wikipedia.org/wiki/Random_sample_consensus#Parameters
         // будет отличаться от случая с гомографией
         const int n_samples = 6;
-        const int n_trials = 5000;
+        const int n_trials = 10000;
         const double threshold_px = 3;
         uint64_t seed = 1;
 
