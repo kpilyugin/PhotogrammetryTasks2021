@@ -128,6 +128,7 @@ set(SOURCES ${SOURCES} src/phg/matching/cl/bruteforce_matcher_cl.h)
 set(LIBRARIES
         libutils
         ${OpenCV_LIBS}
+        ${OpenMP_CXX_LIBRARIES}
         Eigen3::Eigen
         Ceres::ceres
         )
