@@ -647,7 +647,8 @@ void runBA(std::vector<vector3d> &tie_points,
 
             double* point3d_params = &(tie_points[i][0]);
 
-            matrix3d R; vector3d camera_origin;
+            matrix3d R;
+            vector3d camera_origin;
             phg::decomposeUndistortedPMatrix(R, camera_origin, cameras[camera_id]);
 
             if (ENABLE_OUTLIERS_FILTRATION_NEGATIVE_Z && ENABLE_BA) {
@@ -660,9 +661,14 @@ void runBA(std::vector<vector3d> &tie_points,
                 }
             }
 
-            if (ENABLE_OUTLIERS_FILTRATION_COLINEAR && ENABLE_BA) {
-                // TODO выполните проверку случая когда два луча почти параллельны, чтобы не было странных точек улетающих на бесконечность (например чтобы угол был хотя бы 2.5 градуса)
-                // should_be_disabled = true;
+            if (ENABLE_OUTLIERS_FILTRATION_COLINEAR && ENABLE_BA && ci > 0) {
+                vector3d first_camera_origin;
+                phg::decomposeUndistortedPMatrix(R, first_camera_origin, cameras[0]);
+                vector3d ray_first = cv::normalize(track_point - first_camera_origin);
+                vector3d ray_current = cv::normalize(track_point - camera_origin);
+                if (ray_first.dot(ray_current) > 0.999 /*cos(2.5)*/) {
+                    should_be_disabled = true;
+                }
             }
 
             {
