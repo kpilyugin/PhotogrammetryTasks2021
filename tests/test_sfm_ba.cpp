@@ -559,15 +559,17 @@ void runBA(std::vector<vector3d> &tie_points,
         }
     }
 
+    // Если всегда фиксировать первые две камеры, количество инлайеров на них заметно меньше чем на остальных (в частности тест про 25% перестает проходить)
+    // Если же на разных шагах фиксировать разные пары камер, последовательные облака точек не совпадают но зато ошибка распределена более равномерно
     {
-        // Полностью фиксируем положение первой камеры (чтобы не уползло облако точек)
-        size_t camera_id = 0;
+        // Полностью фиксируем положение одной из камер (чтобы не уползло облако точек)
+        size_t camera_id = (ncameras - 1) / 2;
         double* camera0_extrinsics = cameras_extrinsics.data() + CAMERA_EXTRINSICS_NPARAMS * camera_id;
         problem.SetParameterBlockConstant(camera0_extrinsics);
     }
     {
-        // Фиксируем координаты второй камеры, т.е. translation[3] (чтобы фиксировать масштаб)
-        size_t camera_id = 1;
+        // Фиксируем координаты следующей камеры, т.е. translation[3] (чтобы фиксировать масштаб)
+        size_t camera_id = (ncameras - 1) / 2 + 1;
         double* camera1_extrinsics = cameras_extrinsics.data() + CAMERA_EXTRINSICS_NPARAMS * camera_id;
         problem.SetParameterization(camera1_extrinsics, new ceres::SubsetParameterization(6, {0, 1, 2}));
     }
