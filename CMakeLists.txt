@@ -24,7 +24,7 @@ find_package(OpenCV 4.5.1 REQUIRED)
 # mkdir build
 # cd build
 # cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_LIST=features2d,highgui,flann,calib3d -DWITH_OPENEXR=ON -DBUILD_EXAMPLES=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=/opt/opencv451  ..
-# make -j12
+# make -j3 # если у вас больше ядер ЦПУ - можно вставить большее число чтобы быстрее скомпилировалось
 # sudo make install
 # укажите для CMake путь к OpenCV:
 # в CLion это делается через File->Settings->Build, Execution, Deployment->CMake->CMake options: -DOpenCV_DIR=/opt/opencv451
@@ -57,7 +57,7 @@ find_package(Ceres 2.0.0 REQUIRED)
 # mkdir build
 # cd build
 # cmake -DCMAKE_INSTALL_PREFIX=/opt/ceres-solver200 ..
-# make -j12
+# make -j3 # если у вас больше ядер ЦПУ - можно вставить большее число чтобы быстрее скомпилировалось
 # make test
 # sudo make install
 # указать для CMake путь к ceres-solver (в дополнение к OpenCV и Eigen3):
