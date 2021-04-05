@@ -250,7 +250,7 @@ namespace phg {
                     // ACMH adaptive checkerboard: V-shape near pixels (7 pixels each)
                     auto fillVShape = [&](ptrdiff_t i, ptrdiff_t j, int di0, int dj0, int di1, int dj1) -> void {
                         tryToPropagateDonor(i, j, chessboard_pattern_step, hypos_local);
-                        for (size_t step = 0; step < 3; ++step) {
+                        for (size_t step = 1; step <= 3; ++step) {
                             tryToPropagateDonor(i + di0 * step, j + dj0 * step, chessboard_pattern_step, hypos_local);
                             tryToPropagateDonor(i + di1 * step, j + dj1 * step, chessboard_pattern_step, hypos_local);
                         }
