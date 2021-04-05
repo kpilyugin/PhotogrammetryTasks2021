@@ -19,6 +19,12 @@ namespace phg {
     vector3d project  (const vector3d &global_point, const phg::Calibration &calibration, const matrix34d &PtoLocal);
     vector3d unproject(const vector3d &pixel,        const phg::Calibration &calibration, const matrix34d &PtoWorld);
 
+    struct Hypothesis {
+        float depth;
+        vector3f normal;
+        float cost;
+    };
+
     class PMDepthMapsBuilder {
     public:
         PMDepthMapsBuilder(
@@ -66,8 +72,7 @@ namespace phg {
 
         float estimateCost(ptrdiff_t i, ptrdiff_t j, double d, const vector3d &global_normal, size_t neighb_cam);
         float avgCost(std::vector<float> &costs);
-        void  tryToPropagateDonor(ptrdiff_t ni, ptrdiff_t nj, int chessboard_pattern_step,
-                std::vector<float> &hypos_depth, std::vector<vector3f> &hypos_normal, std::vector<float> &hypos_cost);
+        void  tryToPropagateDonor(ptrdiff_t ni, ptrdiff_t nj, int chessboard_pattern_step, std::vector<Hypothesis>& hypos);
 
         void printCurrentStats();
         void debugCurrentPoints(const std::string &label);

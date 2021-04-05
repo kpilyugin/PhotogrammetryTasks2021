@@ -178,7 +178,7 @@ namespace phg {
     }
 
     void PMDepthMapsBuilder::tryToPropagateDonor(ptrdiff_t ni, ptrdiff_t nj, int chessboard_pattern_step,
-            std::vector<float> &hypos_depth, std::vector<vector3f> &hypos_normal, std::vector<float> &hypos_cost)
+            std::vector<Hypothesis>& hypos)
     {
         // rassert-ы или любой другой способ явной фиксации инвариантов со встроенной их проверкой в runtime -
         // это очень приятный способ ускорить отладку и гарантировать что ожидания в голове сойдутся с реальностью в коде,
@@ -198,9 +198,7 @@ namespace phg {
         vector3f n = normal_map.at<vector3f>(nj, ni);
         float cost = cost_map.at<float>(nj, ni);
 
-        hypos_depth.push_back(d);
-        hypos_normal.push_back(n);
-        hypos_cost.push_back(cost);
+        hypos.push_back({d, n, cost});
     }
 
     void PMDepthMapsBuilder::propagation()
@@ -212,9 +210,7 @@ namespace phg {
             #pragma omp parallel for schedule(dynamic, 1)
             for (ptrdiff_t j = 0; j < height; ++j) {
                 for (ptrdiff_t i = (j + chessboard_pattern_step) % 2; i < width; i += 2) {
-                    std::vector<float>    hypos_depth;
-                    std::vector<vector3f> hypos_normal;
-                    std::vector<float>    hypos_cost;
+                    std::vector<Hypothesis> hypos;
 
                     /* 4 прямых соседа A, 8 соседей B через диагональ, 4 соседа C вдалеке (условный рисунок для PROPAGATION_STEP=5):
                      * (удобно подсвечивать через Ctrl+F)
@@ -233,30 +229,51 @@ namespace phg {
                      * o o o o o o o o o o o
                      * o o o o o C o o o o o
                      */
-                    tryToPropagateDonor(i - 1, j + 0, chessboard_pattern_step, hypos_depth, hypos_normal, hypos_cost);
-                    tryToPropagateDonor(i + 0, j - 1, chessboard_pattern_step, hypos_depth, hypos_normal, hypos_cost);
-                    tryToPropagateDonor(i + 1, j + 0, chessboard_pattern_step, hypos_depth, hypos_normal, hypos_cost);
-                    tryToPropagateDonor(i + 0, j + 1, chessboard_pattern_step, hypos_depth, hypos_normal, hypos_cost);
+                    // 201 переделайте чтобы было как в ACMH:
+                    // 202 - паттерн донорства
+                    // 203 - логика про "берем 8 лучших по их личной оценке - по их личному cost" и только их примеряем уже на себя для рассчета cost в нашей точке
 
-                    tryToPropagateDonor(i - 2, j - 1, chessboard_pattern_step, hypos_depth, hypos_normal, hypos_cost);
-                    tryToPropagateDonor(i - 1, j - 2, chessboard_pattern_step, hypos_depth, hypos_normal, hypos_cost);
-                    tryToPropagateDonor(i + 1, j - 2, chessboard_pattern_step, hypos_depth, hypos_normal, hypos_cost);
-                    tryToPropagateDonor(i + 2, j - 1, chessboard_pattern_step, hypos_depth, hypos_normal, hypos_cost);
-                    tryToPropagateDonor(i + 2, j + 1, chessboard_pattern_step, hypos_depth, hypos_normal, hypos_cost);
-                    tryToPropagateDonor(i + 1, j + 2, chessboard_pattern_step, hypos_depth, hypos_normal, hypos_cost);
-                    tryToPropagateDonor(i - 1, j + 2, chessboard_pattern_step, hypos_depth, hypos_normal, hypos_cost);
-                    tryToPropagateDonor(i - 2, j + 1, chessboard_pattern_step, hypos_depth, hypos_normal, hypos_cost);
+                    std::vector<Hypothesis> hypos_local;
+                    auto takeBest = [&]() -> void {
+                        if (!hypos_local.empty()) {
+                            Hypothesis best = hypos_local[0];
+                            for (size_t i = 1; i < hypos_local.size(); ++i) {
+                                if (hypos_local[i].cost < best.cost) {
+                                    best = hypos_local[i];
+                                }
+                            }
+                            hypos.push_back(best);
+                            hypos_local.clear();
+                        }
+                    };
 
-                    // в таких случаях очень приятно использовать множественный курсор (чтобы скопировав четыре строки выше, затем просто колесиком мышки сделать четыре каретки для того чтобы дважды вставить *PROPAGATION_STEP):
-                    tryToPropagateDonor(i - 1*PROPAGATION_STEP, j + 0*PROPAGATION_STEP, chessboard_pattern_step, hypos_depth, hypos_normal, hypos_cost);
-                    tryToPropagateDonor(i + 0*PROPAGATION_STEP, j - 1*PROPAGATION_STEP, chessboard_pattern_step, hypos_depth, hypos_normal, hypos_cost);
-                    tryToPropagateDonor(i + 1*PROPAGATION_STEP, j + 0*PROPAGATION_STEP, chessboard_pattern_step, hypos_depth, hypos_normal, hypos_cost);
-                    tryToPropagateDonor(i + 0*PROPAGATION_STEP, j + 1*PROPAGATION_STEP, chessboard_pattern_step, hypos_depth, hypos_normal, hypos_cost);
-                    
-                    // TODO 201 переделайте чтобы было как в ACMH:
-                    // TODO 202 - паттерн донорства
-                    // TODO 203 - логика про "берем 8 лучших по их личной оценке - по их личному cost" и только их примеряем уже на себя для рассчета cost в нашей точке
-                    // TODO 301 - сделайте вместо наивного переноса depth+normal в наш пиксель - логику про "пересекли луч из нашего пикселя с плоскостью которую задает донор-сосед" и оценку cost в нашей точке тогда можно провести для более релевантной точки-пересечения 
+                    // ACMH adaptive checkerboard: V-shape near pixels (7 pixels each)
+                    auto fillVShape = [&](ptrdiff_t i, ptrdiff_t j, int di0, int dj0, int di1, int dj1) -> void {
+                        tryToPropagateDonor(i, j, chessboard_pattern_step, hypos_local);
+                        for (size_t step = 0; step < 3; ++step) {
+                            tryToPropagateDonor(i + di0 * step, j + dj0 * step, chessboard_pattern_step, hypos_local);
+                            tryToPropagateDonor(i + di1 * step, j + dj1 * step, chessboard_pattern_step, hypos_local);
+                        }
+                        takeBest();
+                    };
+                    fillVShape(i - 1, j, -1, -1, -1, 1);
+                    fillVShape(i, j - 1, -1, -1, 1, -1);
+                    fillVShape(i + 1, j, 1, -1, 1, 1);
+                    fillVShape(i, j + 1, -1, 1, 1, 1);
+
+                    // Far pixels line (11 pixels in each)
+                    auto fillFarLine = [&](ptrdiff_t i, ptrdiff_t j, int di, int dj) -> void {
+                        for (size_t step = 0; step < 11; ++step) {
+                            tryToPropagateDonor(i + 2 * di * step, j + 2 * dj * step, chessboard_pattern_step, hypos_local);
+                        }
+                        takeBest();
+                    };
+                    fillFarLine(i - 3, j, -1, 0);
+                    fillFarLine(i, j - 3, 0, -1);
+                    fillFarLine(i + 3, j, 1, 0);
+                    fillFarLine(i, j + 3, 0, 1);
+
+                    // TODO 301 - сделайте вместо наивного переноса depth+normal в наш пиксель - логику про "пересекли луч из нашего пикселя с плоскостью которую задает донор-сосед" и оценку cost в нашей точке тогда можно провести для более релевантной точки-пересечения
 
                     float    best_depth  = depth_map.at<float>(j, i);
                     vector3f best_normal = normal_map.at<vector3f>(j, i);
@@ -264,11 +281,11 @@ namespace phg {
                     if (best_depth == NO_DEPTH) {
                         best_cost = NO_COST;
                     }
-    
-                    for (size_t hi = 0; hi < hypos_depth.size(); ++hi) {
+
+                    for (size_t hi = 0; hi < hypos.size(); ++hi) {
                         // эту гипотезу мы сейчас рассматриваем как очередного кандидата
-                        float    d = hypos_depth[hi];
-                        vector3f n = hypos_normal[hi];
+                        float    d = hypos[hi].depth;
+                        vector3f n = hypos[hi].normal;
     
                         // оцениваем cost для каждого соседа
                         std::vector<float> costs; 
