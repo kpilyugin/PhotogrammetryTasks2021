@@ -13,6 +13,7 @@
 
 #define COSTS_K_RATIO               1.2f
 #define COSTS_BEST_K_LIMIT          5
+#define COST_VALUE_LIMIT            0.5f
 
 #define VERBOSE_LOGGING
 #ifdef VERBOSE_LOGGING
