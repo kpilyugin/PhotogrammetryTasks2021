@@ -45,6 +45,9 @@ void MinCutModelBuilder::appendToTriangulation(unsigned int camera_id, const vec
     std::vector<std::pair<cgal_point_t, vertex_info_t>> points_to_insert;
 
     timer nn_search_t;
+
+    int merged = 0;
+    int added = 0;
     for (ptrdiff_t i = 0; i < points.size(); ++i) {
         vector3d p = points[i];
         double r = radiuses[i];
@@ -62,18 +65,24 @@ void MinCutModelBuilder::appendToTriangulation(unsigned int camera_id, const vec
         } else {
             // проверяем насколько ближайшая точка далеко
             vector3d np = from_cgal_point(nearest_vertex->point());
-            // TODO 2001 appendToTriangulation(): реализуйте нормальную проверку объединять ли точку с уже добавленной ранее (с учетом r и MERGE_THRESHOLD_RADIUS_KOEF)
-            to_merge = false;
+
+            double dist = cv::norm(p, np);
+            // 2001 appendToTriangulation(): реализуйте нормальную проверку объединять ли точку с уже добавленной ранее (с учетом r и MERGE_THRESHOLD_RADIUS_KOEF)
+            to_merge = dist < r * MERGE_THRESHOLD_RADIUS_KOEF;
         }
 
         vertex_info_t p_info(camera_id, color);
         if (to_merge) {
+            merged++;
             nearest_vertex->info().merge(p_info);
         } else {
-            points_to_insert.push_back(std::make_pair(to_cgal_point(p), p_info));
+            added++;
+            points_to_insert.emplace_back(to_cgal_point(p), p_info);
         }
     }
     append_nn_search_total_t += nn_search_t.elapsed();
+
+    std::cout << "Merged " << merged << " points, added " << added << " new.\n";
 
     timer insertion_t;
     proxy->triangulation.insert(points_to_insert.begin(), points_to_insert.end());
@@ -322,7 +331,9 @@ void MinCutModelBuilder::buildMesh(std::vector<cv::Vec3i> &mesh_faces, std::vect
     size_t nrays = 0;
     for (auto vi = proxy->triangulation.all_vertices_begin(); vi != proxy->triangulation.all_vertices_end(); ++vi) {
         if (vi->info().camera_ids.size() == 0) {
-            // TODO 2004 подумайте и напишите тут какие вершины бывают без камер вообще? почему мы их пропускаем? что и почему случится если убрать это пропускание?
+            // 2004 подумайте и напишите тут какие вершины бывают без камер вообще? почему мы их пропускаем? что и почему случится если убрать это пропускание?
+            // Вершины без камер - добавленные фиктивные вершины по краям bounding box-а
+            // Если убрать проверку, в fetchBoundingFacets будут попадать бесконечные внешние клетки, от которых мы и избавлялись добавлением этих фиктивных вершин
             continue;
         }
 
@@ -481,20 +492,41 @@ void MinCutModelBuilder::buildMesh(std::vector<cv::Vec3i> &mesh_faces, std::vect
             rassert(a_inside && b_outside, 23892183120391);
 
             cv::Vec3i face;
+            bool has_vertex_on_bbox = false;
+            const double eps = 1e-5;
 
-            // TODO 2002 добавьте проверку - не опирается ли треугольник на одну из фиктивных вершин (лежащих на гранях вспомогательного bounding box), можете для этого использовать bb_min и bb_max, или добавьте явный флаг в каждую вершину
+            // 2002 добавьте проверку - не опирается ли треугольник на одну из фиктивных вершин (лежащих на гранях вспомогательного bounding box),
+            // можете для этого использовать bb_min и bb_max, или добавьте явный флаг в каждую вершину
             // иначе говоря сделайте так чтобы такие треугольники не добавлялись в результирующую модель эти большие красные треугольники
 
-            for (int v_index = 1; v_index <= 3; ++v_index) {
-                auto vi = ci->vertex((i + v_index) % 4);
+            const int face_indices[] {
+                    1, 2, 3,
+                    0, 3, 2,
+                    0, 1, 3,
+                    0, 2, 1
+            };
+            for (int v_index = 0; v_index < 3; ++v_index) {
+                auto vi = ci->vertex(face_indices[i * 3 + v_index]);
+
+                for (int coord = 0; coord < 3; ++coord) {
+                    if (abs(vi->point()[coord] - bb_min[coord]) < eps ||
+                        abs(vi->point()[coord] - bb_max[coord]) < eps) {
+                        has_vertex_on_bbox = true;
+                    }
+                }
+
                 size_t& surface_vertex_id = vi->info().vertex_on_surface_id;
                 if (surface_vertex_id == VERTEX_NOT_ON_SURFACE_RESULT) {
                     surface_vertex_id = mesh_nvertices++;
                 }
-                face[v_index - 1] = surface_vertex_id;
+                face[v_index] = surface_vertex_id;
             }
 
-            // TODO 2003 некоторые треугольники выглядят темными в результирующей модели, проблема уходит если выключить в MeshLab освещение (кнопка желтой лампочка - Light on/off) которое учитывает нормаль, которая строится с учетом порядка вершин треугольника (по часовой стрелке или против)
+            if (has_vertex_on_bbox) {
+                continue;
+            }
+
+            // 2003 некоторые треугольники выглядят темными в результирующей модели, проблема уходит если выключить в MeshLab освещение (кнопка желтой лампочка - Light on/off) которое учитывает нормаль, которая строится с учетом порядка вершин треугольника (по часовой стрелке или против)
             // иначе говоря оказывается что порядок обхода вершин в треугольнике не всегда корректен
             // подумайте чем это вызывано и поправьте (лучше всего это делать посматривая на картинку 'Figure 44.1' в документации https://doc.cgal.org/latest/Triangulation_3/index.html )
 
