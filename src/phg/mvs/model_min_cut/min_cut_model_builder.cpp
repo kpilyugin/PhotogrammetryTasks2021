@@ -74,7 +74,12 @@ void MinCutModelBuilder::appendToTriangulation(unsigned int camera_id, const vec
         vertex_info_t p_info(camera_id, color, r);
         if (to_merge) {
             merged++;
-            nearest_vertex->info().merge(p_info);
+            vertex_info_t& near_info = nearest_vertex->info();
+            double weight = near_info.camera_ids.size();
+            near_info.merge(p_info);
+
+            vector3d merged_pos = (p * 1.0 + from_cgal_point(nearest_vertex->point()) * weight) / (weight + 1.0);
+            proxy->triangulation.move(nearest_vertex, to_cgal_point(merged_pos));
         } else {
             added++;
             points_to_insert.emplace_back(to_cgal_point(p), p_info);
@@ -444,7 +449,7 @@ void MinCutModelBuilder::buildMesh(std::vector<cv::Vec3i> &mesh_faces, std::vect
                 // увеличиваем пропускную способность на треугольнике-ребре (в направлении от камеры к точке)
                 // 3001 сделайте пропускные способности на ребрах не единичными а затухающими тем сильнее чем ближе к поверхности
                 double d2 = distance_from_surface * distance_from_surface;
-                double sigma = point_radius;
+                double sigma = SOFT_VISIBILITY_SIGMA; //point_radius;
                 double soft_factor = 1 - exp(-d2 / (2 * sigma * sigma));
                 double capacity = LAMBDA_OUT * soft_factor;
                 next_cell->info().facets_capacities[next_cell_facet_subindex] += capacity;

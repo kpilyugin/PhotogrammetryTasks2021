@@ -22,6 +22,12 @@ vertex_info_t::vertex_info_t(unsigned int camera_id, const cv::Vec3b &color, dou
 
 void vertex_info_t::merge(const vertex_info_t &that)
 {
+    double w1 = camera_ids.size();
+    double w2 = that.camera_ids.size();
+    for (int i = 0; i < 3; ++i) {
+        color[i] = (w1 * color[i] + w2 * that.color[i]) / (w1 + w2);
+    }
+
     for (int i = 1; i < camera_ids.size(); ++i) {
         rassert(camera_ids[i - 1] < camera_ids[i], 23781274121024);
     }
