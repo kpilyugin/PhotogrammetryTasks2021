@@ -336,6 +336,11 @@ void MinCutModelBuilder::buildMesh(std::vector<cv::Vec3i> &mesh_faces, std::vect
     timer rays_traversing_t;
     double avg_triangles_intersected_per_ray = 0;
     size_t nrays = 0;
+
+#ifdef WEAK_SUPPORT_ENABLED
+    std::vector<std::pair<cell_handle_t, cell_handle_t>> weak_support_candidates;
+#endif
+
     for (auto vi = proxy->triangulation.all_vertices_begin(); vi != proxy->triangulation.all_vertices_end(); ++vi) {
         if (vi->info().camera_ids.size() == 0) {
             // 2004 подумайте и напишите тут какие вершины бывают без камер вообще? почему мы их пропускаем? что и почему случится если убрать это пропускание?
@@ -357,6 +362,9 @@ void MinCutModelBuilder::buildMesh(std::vector<cv::Vec3i> &mesh_faces, std::vect
             const vector3d ray_to_camera = cv::normalize(camera_center - point0);
             const double distance_to_camera = phg::norm(camera_center - point0);
             const double point_radius = vi->info().radius;
+
+            // weak support candidate for each point: outside cell (L_p) and inside cell (F_p)
+            std::pair<cell_handle_t, cell_handle_t> weak_support_cells;
 
             {
                 // хотим найти ячейку триангуляции лежащую внутри поверхности (т.е. сразу за этим лучем видимости camera_center->point0):
@@ -395,7 +403,11 @@ void MinCutModelBuilder::buildMesh(std::vector<cv::Vec3i> &mesh_faces, std::vect
 
                     if (cur_facets.empty() || prev_distance > max_distance) {
                         // добавляем пропускной способности из этой ячейки (из этого тетрагедрончика) к стоку
+#ifdef WEAK_SUPPORT_ENABLED
+                        weak_support_cells.second = cell_after_point;
+#else
                         cell_after_point->info().t_capacity += LAMBDA_IN;
+#endif
                     } else {
                         double d2 = distance_from_surface * distance_from_surface;
                         double sigma = point_radius;
@@ -433,6 +445,13 @@ void MinCutModelBuilder::buildMesh(std::vector<cv::Vec3i> &mesh_faces, std::vect
                 // предыдущая всмысле шагания ячейка (та что ближе к точке)
                 const cell_handle_t prev_cell = next_cell->neighbor(next_cell_facet_subindex);
 
+#ifdef WEAK_SUPPORT_ENABLED
+                if (steps == 1) {
+                    weak_support_cells.first = prev_cell; // closest cell to point
+                    weak_support_candidates.push_back(weak_support_cells);
+                }
+#endif
+
                 // посчитаем какой путь мы уже прошли от точки, для этого надо найти расстояние от точки до места пересечения луча и треугольника (т.е. плоскости на которой он лежит, т.к. мы уже знаем что треугольник мы пересекаем лучем)
                 plane_t facet_plane(intersected_facet);
                 double distance_from_surface = facet_plane.distanceToIntersection(point0, ray_to_camera);
@@ -467,6 +486,30 @@ void MinCutModelBuilder::buildMesh(std::vector<cv::Vec3i> &mesh_faces, std::vect
             ++nrays;
         }
     }
+
+#ifdef WEAK_SUPPORT_ENABLED
+    int weak_support_count = 0;
+    for (auto& cells: weak_support_candidates) {
+        // f - before point, closer to camera; l - after point, 'sink node'
+        cell_info_t f_cell = cells.first->info();
+        cell_info_t l_cell = cells.second->info();
+        double f_support = 0.0;
+        double l_support = 0.0;
+
+        for (int i = 0; i < 4; ++i) {
+            f_support += f_cell.facets_capacities[i];
+            l_support += l_cell.facets_capacities[i];
+        }
+        if (l_support < f_support * WEAK_SUPPORT_ALPHA_RATIO && f_support < WEAK_SUPPORT_BETA_THRESHOLD) {
+            l_cell.t_capacity += LAMBDA_IN * (f_support - l_support);
+            weak_support_count++;
+        } else {
+            l_cell.t_capacity += LAMBDA_IN;
+        }
+    }
+    std::cout << "Num points with weak support weight adjustment: " << weak_support_count << "\n";
+#endif
+
     double rays_traversed_time = rays_traversing_t.elapsed();
     if (nrays > 0) avg_triangles_intersected_per_ray /= nrays;
     std::cout << "Visibility rays traversed in " << rays_traversed_time << " s: " << nrays << " rays with " << avg_triangles_intersected_per_ray << " avg triangle intersections" << std::endl;
