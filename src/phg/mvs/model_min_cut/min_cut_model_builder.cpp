@@ -468,7 +468,7 @@ void MinCutModelBuilder::buildMesh(std::vector<cv::Vec3i> &mesh_faces, std::vect
                 // увеличиваем пропускную способность на треугольнике-ребре (в направлении от камеры к точке)
                 // 3001 сделайте пропускные способности на ребрах не единичными а затухающими тем сильнее чем ближе к поверхности
                 double d2 = distance_from_surface * distance_from_surface;
-                double sigma = SOFT_VISIBILITY_SIGMA; //point_radius;
+                double sigma = SOFT_VISIBILITY_SIGMA * point_radius;
                 double soft_factor = 1 - exp(-d2 / (2 * sigma * sigma));
                 double capacity = LAMBDA_OUT * soft_factor;
                 next_cell->info().facets_capacities[next_cell_facet_subindex] += capacity;

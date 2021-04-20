@@ -4,7 +4,7 @@
 #define LAMBDA_IN                       1.0
 #define LAMBDA_SOURCE                   1000000.0
 
-#define SOFT_VISIBILITY_SIGMA           0.001
+#define SOFT_VISIBILITY_SIGMA           5
 
 #define WEAK_SUPPORT_ENABLED            1
 #define WEAK_SUPPORT_ALPHA_RATIO        0.5
