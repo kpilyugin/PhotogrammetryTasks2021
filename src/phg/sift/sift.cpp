@@ -22,11 +22,11 @@
 #define OCTAVE_GAUSSIAN_IMAGES      (OCTAVE_NLAYERS + 3)
 #define OCTAVE_DOG_IMAGES           (OCTAVE_NLAYERS + 2)
 #define INITIAL_IMG_SIGMA           0.75                 // предполагаемая степень размытия изначальной картинки
-#define INPUT_IMG_PRE_BLUR_SIGMA    1.0                  // сглаживание изначальной картинки
 
 #define SUBPIXEL_FITTING_ENABLE      1
 #define SUBPIXEL_FITTING_STEPS       5
 #define ELIMINATE_EDGE_RESPONSE_ENABLE 1
+#define DETECT_DUPLICATES            1
 
 #define ORIENTATION_NHISTS           36   // число корзин при определении ориентации ключевой точки через гистограммы
 #define ORIENTATION_WINDOW_R         3    // минимальный радиус окна в рамках которого будет выбрана ориентиация (в пикселях), R=3 => 5x5 окно
@@ -56,7 +56,7 @@ void phg::SIFT::detectAndCompute(const cv::Mat &originalImg, std::vector<cv::Key
         rassert(false, 14291409120);
     }
     if (DEBUG_ENABLE) cv::imwrite(DEBUG_PATH + "01_grey.png", img);
-    cv::GaussianBlur(img, img, cv::Size(0, 0), INPUT_IMG_PRE_BLUR_SIGMA, INPUT_IMG_PRE_BLUR_SIGMA);
+    cv::GaussianBlur(img, img, cv::Size(0, 0), initial_blur_sigma, initial_blur_sigma);
     if (DEBUG_ENABLE) cv::imwrite(DEBUG_PATH + "02_grey_blurred.png", img);
 
     // Scale-space extrema detection
@@ -358,7 +358,7 @@ void phg::SIFT::findLocalExtremasAndDescribe(const std::vector<cv::Mat> &gaussia
                         cv::Mat img = gaussianPyramid[octave * OCTAVE_GAUSSIAN_IMAGES + localLayer];
                         std::vector<float> votes;
                         float biggestVote;
-                        int oriRadius = (int) (ORIENTATION_WINDOW_R * pow(k, localLayer));
+                        int oriRadius = (int) (ORIENTATION_WINDOW_R * pow(k, localLayer + layerCorr));
                         if (!buildLocalOrientationHists(img, i, j, oriRadius, votes, biggestVote))
                             continue;
 
@@ -372,7 +372,7 @@ void phg::SIFT::findLocalExtremasAndDescribe(const std::vector<cv::Mat> &gaussia
                                 rassert(kp.angle >= 0.0 && kp.angle <= 360.0, 123512412412);
 
                                 std::vector<float> descriptor;
-                                double descrSampleRadius = (DESCRIPTOR_SAMPLE_WINDOW_R * pow(k, localLayer));
+                                double descrSampleRadius = (DESCRIPTOR_SAMPLE_WINDOW_R * pow(k, localLayer + layerCorr));
                                 if (!buildDescriptor(img, kp.pt.x, kp.pt.y, descrSampleRadius, kp.angle, descriptor))
                                     continue;
 
@@ -392,6 +392,23 @@ void phg::SIFT::findLocalExtremasAndDescribe(const std::vector<cv::Mat> &gaussia
             pointsDesc.insert(pointsDesc.end(), thread_descriptors.begin(), thread_descriptors.end());
         }
     }
+
+#if DETECT_DUPLICATES
+    size_t i = 1;
+    int numDuplicates = 0;
+    while (i < keyPoints.size()) {
+        auto cur = keyPoints[i];
+        auto prev = keyPoints[i - 1];
+        if (cur.pt.x == prev.pt.x && cur.pt.y == prev.pt.y) {
+            keyPoints.erase(keyPoints.begin() + i);
+            pointsDesc.erase(pointsDesc.begin() + i);
+            numDuplicates++;
+        } else {
+            i++;
+        }
+    }
+    std::cout << "Keypoint duplicates: " << numDuplicates << "\n";
+#endif
 
     rassert(pointsDesc.size() == keyPoints.size(), 12356351235124);
     desc = cv::Mat(pointsDesc.size(), DESCRIPTOR_SIZE * DESCRIPTOR_SIZE * DESCRIPTOR_NBINS, CV_32FC1);
@@ -466,12 +483,13 @@ bool phg::SIFT::buildDescriptor(const cv::Mat &img, float px, float py, double d
                     int x = (int) (px + shift.x);
                     int y = (int) (py + shift.y);
 
-                    if (y - 1 < 0 || y + 1 >= img.rows || x - 1 < 0 || x + 1 >= img.cols) {
+                    int offset = smpW;
+                    if (y - offset < 0 || y + offset >= img.rows || x - offset < 0 || x + offset >= img.cols) {
                         return false;
                     }
 
-                    double dx = img.at<float>(y, x + 1) - img.at<float>(y, x - 1);
-                    double dy = img.at<float>(y + 1, x) - img.at<float>(y - 1, x);
+                    double dx = img.at<float>(y, x + offset) - img.at<float>(y, x - offset);
+                    double dy = img.at<float>(y + offset, x) - img.at<float>(y - offset, x);
                     double magnitude = sqrt(dx * dx + dy * dy);
                     double orientation = extractOrientation(dy, dx);
 
