@@ -325,6 +325,89 @@ namespace phg {
 #endif
     }
 
+    void buildPoints(const cv::Mat &depth_map, const cv::Mat &img, const matrix34d &PtoLocal, const Calibration &calibration,
+                     std::vector<vector3d> &points, std::vector<double> &radiuses, std::vector<vector3d> &normals, std::vector<cv::Vec3b> &colors)
+    {
+        rassert(depth_map.type() == CV_32FC1, 2341251065);
+        rassert(img.type() == CV_8UC3, 2341251066);
+        rassert(depth_map.rows == img.rows, 283471241067);
+        rassert(depth_map.cols == img.cols, 283471241068);
+
+        matrix34d PtoWorld = phg::invP(PtoLocal);
+
+        std::vector<vector3d> all_points(depth_map.rows * depth_map.cols);
+        std::vector<unsigned char> all_points_is_empty(depth_map.rows * depth_map.cols);
+
+#pragma omp parallel for schedule(dynamic, 1)
+        for (ptrdiff_t j = 0; j < depth_map.rows; ++j) {
+            for (ptrdiff_t i = 0; i < depth_map.cols; ++i) {
+                float d = depth_map.at<float>(j, i);
+                if (d == 0.0f) {
+                    all_points_is_empty[j * depth_map.cols + i] = true;
+                    continue;
+                }
+
+                rassert(d > 0.0, 23891287410078);
+                vector3d p = phg::unproject(vector3d(i + 0.5, j + 0.5, d), calibration, PtoWorld);
+                all_points[j * depth_map.cols + i] = p;
+                all_points_is_empty[j * depth_map.cols + i] = false;
+            }
+        }
+
+        const double EMPTY_RADIUS = -1.0;
+        std::vector<double> all_radius(depth_map.rows * depth_map.cols);
+        std::vector<vector3d> all_normals(depth_map.rows * depth_map.cols);
+        std::vector<cv::Vec3b> all_colors(depth_map.rows * depth_map.cols);
+
+#pragma omp parallel for schedule(dynamic, 1)
+        for (ptrdiff_t j = 0; j < depth_map.rows; ++j) {
+            for (ptrdiff_t i = 0; i < depth_map.cols; ++i) {
+
+                // удостоверяемся что есть сосед справа и снизу
+                if (i + 1 >= depth_map.cols || j + 1 >= depth_map.rows) {
+                    all_radius[j * depth_map.cols + i] = EMPTY_RADIUS;
+                    continue;
+                }
+
+                // удостоверяемся что у нас и у соседей есть 3D точка (т.е. что они не с пустой глубиной)
+                if (all_points_is_empty[j * depth_map.cols + i] || all_points_is_empty[j * depth_map.cols + (i + 1)] || all_points_is_empty[(j + 1) * depth_map.cols + i]) {
+                    all_radius[j * depth_map.cols + i] = EMPTY_RADIUS;
+                    continue;
+                }
+
+                vector3d p   = all_points[ j      * depth_map.cols +  i];
+                vector3d p10 = all_points[ j      * depth_map.cols + (i + 1)] - p;
+                vector3d p01 = all_points[(j + 1) * depth_map.cols +  i]      - p;
+
+                double radius = sqrt(std::min(norm2(p10), norm2(p01))); // 1001 постройте радиус точки на базе расстояния до соседа справа и снизу
+                vector3d normal = cv::normalize(p01.cross(p10)); // 1002 постройте единичную нормаль на базе соседа справа и снизу
+                cv::Vec3b color = img.at<cv::Vec3b>(j, i);
+                // 1003 удостоверьтесь что облака точек по картам глубины строятся правильно (в частности что вы например не ошиблись со знаком нормали)
+                // для этого заготовлен тест test_mesh_min_cut.cpp/ModelMinCut/DepthMapsToPointClouds
+
+                all_radius[j * depth_map.cols + i] = radius;
+                all_normals[j * depth_map.cols + i] = normal;
+                all_colors[j * depth_map.cols + i] = color;
+            }
+        }
+
+        for (ptrdiff_t j = 0; j < depth_map.rows; ++j) {
+            for (ptrdiff_t i = 0; i < depth_map.cols; ++i) {
+                if (all_radius[j * depth_map.cols + i] == EMPTY_RADIUS)
+                    continue;
+
+                points.push_back(all_points[j * depth_map.cols + i]);
+                radiuses.push_back(all_radius[j * depth_map.cols + i]);
+                normals.push_back(all_normals[j * depth_map.cols + i]);
+                colors.push_back(all_colors[j * depth_map.cols + i]);
+            }
+        }
+
+        rassert(points.size() == radiuses.size(), 283918239120137);
+        rassert(points.size() == normals.size(), 283918239120138);
+        rassert(points.size() == colors.size(), 283918239120139);
+    }
+
     float PMDepthMapsBuilder::estimateCost(ptrdiff_t i, ptrdiff_t j, double d, const vector3d &global_normal, size_t neighb_cam)
     {
         vector3d pixel(i + 0.5, j + 0.5, d);
