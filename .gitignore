@@ -3,5 +3,3 @@
 build
 cmake-build*
 data/src/test_sfm/saharov/*.JPG
-opencv
-data/debug

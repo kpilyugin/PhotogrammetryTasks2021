@@ -15,11 +15,6 @@ else()
     message(FATAL_ERROR "OpenMP not found! You need OpenMP for speedup on multicore CPUs!")
 endif()
 
-# macOS:
-# -DOpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I/usr/local/opt/libomp/include"
-# -DOpenMP_CXX_LIB_NAMES="omp"
-# -DOpenMP_omp_LIBRARY=/usr/local/opt/libomp/lib/libomp.dylib
-
 find_package(OpenCV 4.5.1 REQUIRED)
 #      Linux:
 # скачайте Source code (opencv-4.5.1.zip) отсюда - https://github.com/opencv/opencv/releases распакуйте и скомпилируйте:
@@ -29,7 +24,7 @@ find_package(OpenCV 4.5.1 REQUIRED)
 # mkdir build
 # cd build
 # cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBUILD_LIST=features2d,highgui,flann,calib3d -DWITH_OPENEXR=ON -DBUILD_EXAMPLES=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_TESTS=OFF -DCMAKE_INSTALL_PREFIX=/opt/opencv451  ..
-# make -j12
+# make -j3 # если у вас больше ядер ЦПУ - можно вставить большее число чтобы быстрее скомпилировалось
 # sudo make install
 # укажите для CMake путь к OpenCV:
 # в CLion это делается через File->Settings->Build, Execution, Deployment->CMake->CMake options: -DOpenCV_DIR=/opt/opencv451
@@ -51,6 +46,40 @@ find_package(Eigen3 3.3 REQUIRED)
 # 7) cmake --build .  --target install
 # 8) запомните папку куда была проведена установка Eigen3 - она имеет вид .../eigen-3.3.9/install_dir
 # 9) Добавьте в File->Settings->CMake options: -DEigen3_DIR=<ПОПРАВЬТЕ ЭТОТ ПУТЬ>/eigen-3.3.9/install_dir/share/eigen3/cmake
+
+find_package(Ceres 2.0.0 REQUIRED)
+#      Если вы на Mac - http://ceres-solver.org/installation.html#macos
+#      Linux:
+# sudo apt install libgoogle-glog-dev libgflags-dev libatlas-base-dev libeigen3-dev libsuitesparse-dev
+# wget https://github.com/ceres-solver/ceres-solver/archive/2.0.0.zip
+# unzip 2.0.0.zip
+# cd ceres-solver-2.0.0
+# mkdir build
+# cd build
+# cmake -DCMAKE_INSTALL_PREFIX=/opt/ceres-solver200 ..
+# make -j3 # если у вас больше ядер ЦПУ - можно вставить большее число чтобы быстрее скомпилировалось
+# make test
+# sudo make install
+# указать для CMake путь к ceres-solver (в дополнение к OpenCV и Eigen3):
+# File->Settings->Build, Execution, Deployment->CMake->CMake options: -DCeres_DIR=/opt/ceres-solver200/lib/cmake/Ceres
+# (стоит добавить и к Debug сборке)
+#
+#      Windows (чтобы удобно копировать в Git Bash консоль: выделите, нажмите Ctrl+C, в консоли нажмите Shift+Insert):
+#      (учитывайте что компиляция ceres-solver займет некоторое время, в теории можно ускорить это за счет многпоточности, но видимо для этого надо устанавливать ninja)
+# 1) Скачать https://github.com/ceres-solver/ceres-solver/archive/2.0.0.zip
+# 2) Распаковать и открыть Git Bash в папке распаковки (правый клик в проводнике -> Git Bash here)
+# 3) myDirPath=$(pwd)
+# 4) mkdir build_dir
+# 5) cd build_dir
+#     поправьте в команде путь к установке Eigen:
+# 6)  cmake -G "Visual Studio 16 2019" -DMINIGLOG=ON -DEigen3_DIR=<ПОПРАВЬТЕ ЭТОТ ПУТЬ>/eigen-3.3.9/install_dir/share/eigen3/cmake -DCMAKE_INSTALL_PREFIX="$myDirPath/install_dir" ..
+# 7)  cmake --build . --config debug
+# 8)  cmake --build . --config RelWithDebInfo
+# 9)  cmake --build . --target install --config debug
+# 10) cmake --build . --target install --config RelWithDebInfo
+#     указать для CMake путь к ceres-solver (в дополнение к OpenCV и Eigen3):
+#     в CLion это делается через File->Settings->Build, Execution, Deployment->CMake->CMake options: -DCeres_DIR=<ПОПРАВЬТЕ ЭТОТ ПУТЬ>\ceres-solver-2.0.0\install_dir\CMake
+#     (стоит добавить и к Debug сборке)
 
 set(SOURCES
         src/phg/core/calibration.cpp
@@ -101,6 +130,7 @@ set(LIBRARIES
         ${OpenCV_LIBS}
         ${OpenMP_CXX_LIBRARIES}
         Eigen3::Eigen
+        Ceres::ceres
         )
 
 add_library(${PROJECT_NAME} ${SOURCES})
@@ -117,10 +147,14 @@ set(TEST_LIBRARIES
         gtest_main
         )
 
-add_executable(test_sift tests/test_sift.cpp ${TEST_SOURCES})
-add_executable(test_matching tests/test_matching.cpp ${TEST_SOURCES})
-add_executable(test_sfm tests/test_sfm.cpp ${TEST_SOURCES})
+add_executable(test_sift            tests/test_sift.cpp             ${TEST_SOURCES})
+add_executable(test_matching        tests/test_matching.cpp         ${TEST_SOURCES})
+add_executable(test_sfm             tests/test_sfm.cpp              ${TEST_SOURCES})
+add_executable(test_ceres_solver    tests/test_ceres_solver.cpp     ${TEST_SOURCES})
+add_executable(test_sfm_ba          tests/test_sfm_ba.cpp           ${TEST_SOURCES})
 
-target_link_libraries(test_sift ${PROJECT_NAME} ${LIBRARIES} ${TEST_LIBRARIES})
-target_link_libraries(test_matching ${PROJECT_NAME} ${LIBRARIES} ${TEST_LIBRARIES})
-target_link_libraries(test_sfm ${PROJECT_NAME} ${LIBRARIES} ${TEST_LIBRARIES})
+target_link_libraries(test_sift         ${PROJECT_NAME} ${LIBRARIES} ${TEST_LIBRARIES})
+target_link_libraries(test_matching     ${PROJECT_NAME} ${LIBRARIES} ${TEST_LIBRARIES})
+target_link_libraries(test_sfm          ${PROJECT_NAME} ${LIBRARIES} ${TEST_LIBRARIES})
+target_link_libraries(test_ceres_solver ${PROJECT_NAME} ${LIBRARIES} ${TEST_LIBRARIES})
+target_link_libraries(test_sfm_ba       ${PROJECT_NAME} ${LIBRARIES} ${TEST_LIBRARIES})

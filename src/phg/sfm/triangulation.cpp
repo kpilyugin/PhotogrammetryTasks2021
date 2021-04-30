@@ -4,30 +4,42 @@
 
 #include <Eigen/SVD>
 
-// По положениям камер и ключевых точкам определяем точку в трехмерном пространстве
-// Задача эквивалентна поиску точки пересечения двух (или более) лучей
-// Используем DLT метод, составляем систему уравнений. Система похожа на систему для гомографии,
-// там пары уравнений получались из выражений вида x (cross) Hx = 0, а здесь будет x (cross) PX = 0
+// Используем DLT метод, составляем систему уравнений. Система похожа на систему для гомографии, там пары уравнений получались из выражений вида x (cross) Hx = 0, а здесь будет x (cross) PX = 0
 // (см. Hartley & Zisserman p.312)
 cv::Vec4d phg::triangulatePoint(const cv::Matx34d *Ps, const cv::Vec3d *ms, int count)
 {
-    int a_rows = 2 * count;
-    int a_cols = 4;
+    using mat = Eigen::MatrixXd;
+    using vec = Eigen::VectorXd;
 
-    Eigen::MatrixXd A(a_rows, a_cols);
+    mat A(2 * count, 4);
+
     for (int i = 0; i < count; ++i) {
-        double x = ms[i][0];
-        double y = ms[i][1];
-        double z = ms[i][2];
-        const cv::Matx34d& P = Ps[i];
 
-        for (int j = 0; j < 4; j++) {
-            A(2 * i, j) = x * P(2, j) - z * P(0, j);
-            A(2 * i + 1, j) = y * P(2, j) - z * P(1, j);
-        }
+        const matrix34d &P = Ps[i];
+        const vector3d &m = ms[i];
+
+        double x = m[0];
+        double y = m[1];
+        double z = m[2];
+
+        auto p0 = P.row(0);
+        auto p1 = P.row(1);
+        auto p2 = P.row(2);
+
+        auto row0 = x * p2 - z * p0;
+        auto row1 = y * p2 - z * p1;
+
+        A.row(i * 2 + 0) << row0(0), row0(1), row0(2), row0(3);
+        A.row(i * 2 + 1) << row1(0), row1(1), row1(2), row1(3);
     }
-    Eigen::JacobiSVD<Eigen::MatrixXd> svda(A, Eigen::ComputeFullV);
-    Eigen::VectorXd null_space = svda.matrixV().col(a_cols - 1);
-    cv::Vec4d X(null_space[0], null_space[1], null_space[2], null_space[3]);
-    return X;
+
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    Eigen::VectorXd null_space = svd.matrixV().col(3);
+
+    vector4d result;
+    for (int i = 0; i < 4; ++i) {
+        result(i) = null_space(i);
+    }
+
+    return result;
 }

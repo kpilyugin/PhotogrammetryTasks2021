@@ -11,6 +11,8 @@
 #include "opencv2/core/core.hpp"
 #include <fstream>
 #include <iomanip>
+#include <iostream>
+#include <algorithm>
 
 
 namespace {
@@ -192,12 +194,26 @@ void phg::exportPointCloud(const std::vector<cv::Vec3d> &point_cloud, const std:
     cv::Mat coords3d(1, point_cloud.size(), CV_32FC3);
     cv::Mat img(1, point_cloud.size(), CV_8UC3);
 
+    cv::Vec3f min_point;
+    cv::Vec3f max_point;
+
     for (int i = 0; i < (int) point_cloud.size(); ++i) {
         cv::Vec3f x = point_cloud[i];
+        if (i == 0) {
+            min_point = x;
+            max_point = x;
+        } else {
+            for (int j = 0; j < 3; ++j) {
+                min_point[j] = std::min(min_point[j], x[j]);
+                max_point[j] = std::max(max_point[j], x[j]);
+            }
+        }
+
         cv::Vec3b c = point_cloud_colors_bgr.empty() ? cv::Vec3b{200, 200, 200} : point_cloud_colors_bgr[i];
         coords3d.at<cv::Vec3f>(0, i) = x;
         img.at<cv::Vec3b>(0, i) = c;
     }
+    std::cout << "Resulting point cloud: num points = " << point_cloud.size() << ", min = " << min_point << ", max = " << max_point << "\n";
 
     DataExporter data(coords3d, img, path, FileFormat::PLY_BIN_BIGEND);
     data.exportToFile();

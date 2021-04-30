@@ -38,11 +38,11 @@ void phg::randomSample(std::vector<int> &dst, int max_id, int sample_size, uint6
     }
 }
 
-// проверяет, что расстояние от точки до линии меньше порога
+
 bool phg::epipolarTest(const cv::Vec2d &pt0, const cv::Vec2d &pt1, const cv::Matx33d &F, double t)
 {
-    cv::Vec3d line = F * cv::Vec3d(pt0[0], pt0[1], 1.0);
-    double norm2 = line[0] * line[0] + line[1] * line[1];
-    double dist = line[0] * pt1[0] + line[1] * pt1[1] + line[2];
-    return dist * dist < t * t * norm2;
+    cv::Vec3d l1 = F * cv::Vec3d(pt0[0], pt0[1], 1.0);
+    double s1 = l1[0] * l1[0] + l1[1] * l1[1];
+    double d1 = l1[0] * pt1[0] + l1[1] * pt1[1] + l1[2];
+    return d1*d1 < t*t * s1;
 }
