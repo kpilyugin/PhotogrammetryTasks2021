@@ -15,6 +15,7 @@ install:
       sudo bash .travis/install_opencv451.sh;
       sudo bash .travis/install_intel_opencl.sh;
     fi;
+  - sudo apt install -y libcgal-dev
 
 script:
   - mkdir build
@@ -22,4 +23,4 @@ script:
   - cmake -DCMAKE_BUILD_TYPE=RELWITHDEBINFO -DCeres_DIR=/opt/ceres-solver200 ..
   - make -j12
   - cd ..
-#  - ./build/test_depth_maps_pm
+  - ./build/test_mesh_min_cut

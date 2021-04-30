@@ -25,6 +25,9 @@ namespace phg {
         float cost;
     };
 
+    void buildPoints(const cv::Mat &depth_map, const cv::Mat &img, const matrix34d &PtoLocal, const Calibration &calibration,
+                     std::vector<vector3d> &points, std::vector<double> &radiuses, std::vector<vector3d> &normals, std::vector<cv::Vec3b> &colors);
+
     class PMDepthMapsBuilder {
     public:
         PMDepthMapsBuilder(
@@ -64,6 +67,12 @@ namespace phg {
                 cv::Mat &depth_map, cv::Mat &normal_map, cv::Mat &cost_map,
                 float depth_min, float depth_max);
 
+        static void buildGoodPoints(const cv::Mat &depth_map, const cv::Mat &normal_map, const cv::Mat &cost_map, const cv::Mat &img,
+                                    const phg::Calibration &calibration, const matrix34d &PtoWorld,
+                                    std::vector<cv::Vec3d> &points, std::vector<cv::Vec3b> &colors, std::vector<cv::Vec3d> &normals);
+
+        std::vector<matrix34d>               cameras_PtoWorld; // матрица переводящая локальную систему координат i-ой камеры (смотрящей по оси +Z) в глобальную систему координат мира
+
     protected:
 
         void refinement();
@@ -83,7 +92,6 @@ namespace phg {
         const std::vector<std::string>      &cameras_labels;
 
         const std::vector<matrix34d>        &cameras_PtoLocal; // матрица переводящая глобальную систему координат мира в систему координат i-ой камеры (смотрящей по оси +Z)
-        std::vector<matrix34d>               cameras_PtoWorld; // матрица переводящая локальную систему координат i-ой камеры (смотрящей по оси +Z) в глобальную систему координат мира
         std::vector<matrix3d>                cameras_RtoWorld; // матрица поворота из локальной системы координат i-ой камеры (смотрящей по оси +Z) в нлобальную систему координат мира
 
         const phg::Calibration              &calibration;
