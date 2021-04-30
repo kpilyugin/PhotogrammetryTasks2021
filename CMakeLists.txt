@@ -100,6 +100,12 @@ set(SOURCES
         src/phg/matching/flann_matcher.cpp
         src/phg/matching/flann_matcher.h
         src/phg/matching/flann_factory.h
+        src/phg/mvs/depth_maps/pm_depth_maps.cpp
+        src/phg/mvs/depth_maps/pm_depth_maps.h
+        src/phg/mvs/depth_maps/pm_fast_random.cpp
+        src/phg/mvs/depth_maps/pm_fast_random.h
+        src/phg/mvs/depth_maps/pm_geometry.cpp
+        src/phg/mvs/depth_maps/pm_geometry.h
         src/phg/sfm/defines.h
         src/phg/sfm/ematrix.cpp
         src/phg/sfm/ematrix.h
@@ -115,6 +121,10 @@ set(SOURCES
         src/phg/sfm/sfm_utils.h
         src/phg/sfm/triangulation.cpp
         src/phg/sfm/triangulation.h
+        src/phg/utils/cameras_bundler_export.cpp
+        src/phg/utils/cameras_bundler_export.h
+        src/phg/utils/cameras_bundler_import.cpp
+        src/phg/utils/cameras_bundler_import.h
         src/phg/utils/point_cloud_export.cpp
         src/phg/utils/point_cloud_export.h
         )
@@ -152,9 +162,11 @@ add_executable(test_matching        tests/test_matching.cpp         ${TEST_SOURC
 add_executable(test_sfm             tests/test_sfm.cpp              ${TEST_SOURCES})
 add_executable(test_ceres_solver    tests/test_ceres_solver.cpp     ${TEST_SOURCES})
 add_executable(test_sfm_ba          tests/test_sfm_ba.cpp           ${TEST_SOURCES})
+add_executable(test_depth_maps_pm   tests/test_depth_maps_pm.cpp    ${TEST_SOURCES})
 
-target_link_libraries(test_sift         ${PROJECT_NAME} ${LIBRARIES} ${TEST_LIBRARIES})
-target_link_libraries(test_matching     ${PROJECT_NAME} ${LIBRARIES} ${TEST_LIBRARIES})
-target_link_libraries(test_sfm          ${PROJECT_NAME} ${LIBRARIES} ${TEST_LIBRARIES})
-target_link_libraries(test_ceres_solver ${PROJECT_NAME} ${LIBRARIES} ${TEST_LIBRARIES})
-target_link_libraries(test_sfm_ba       ${PROJECT_NAME} ${LIBRARIES} ${TEST_LIBRARIES})
+target_link_libraries(test_sift          ${PROJECT_NAME} ${LIBRARIES} ${TEST_LIBRARIES})
+target_link_libraries(test_matching      ${PROJECT_NAME} ${LIBRARIES} ${TEST_LIBRARIES})
+target_link_libraries(test_sfm           ${PROJECT_NAME} ${LIBRARIES} ${TEST_LIBRARIES})
+target_link_libraries(test_ceres_solver  ${PROJECT_NAME} ${LIBRARIES} ${TEST_LIBRARIES})
+target_link_libraries(test_sfm_ba        ${PROJECT_NAME} ${LIBRARIES} ${TEST_LIBRARIES})
+target_link_libraries(test_depth_maps_pm ${PROJECT_NAME} ${LIBRARIES} ${TEST_LIBRARIES})

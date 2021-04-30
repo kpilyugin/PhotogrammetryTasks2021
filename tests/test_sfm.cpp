@@ -605,15 +605,6 @@ TEST (SFM, Resection) {
     EXPECT_LT(rms1, 0.05 * rms2);
 }
 
-namespace {
-
-    // one track corresponds to one 3d point
-    struct Track {
-        std::vector<std::pair<int, int>> img_kpt_pairs;
-    };
-
-}
-
 TEST (SFM, ReconstructNViews) {
 
     using namespace cv;
@@ -671,7 +662,7 @@ TEST (SFM, ReconstructNViews) {
         }
     }
 
-    std::vector<Track> tracks;
+    std::vector<phg::Track> tracks;
     std::vector<vector3d> tie_points;
     std::vector<matrix34d> cameras(n_imgs);
     std::vector<char> aligned(n_imgs);
@@ -729,7 +720,7 @@ TEST (SFM, ReconstructNViews) {
 
             tie_points.push_back(X3d);
 
-            Track track;
+            phg::Track track;
             track.img_kpt_pairs.push_back({0, good_matches_gms[i].queryIdx});
             track.img_kpt_pairs.push_back({1, good_matches_gms[i].trainIdx});
             track_ids[0][good_matches_gms[i].queryIdx] = tracks.size();
@@ -782,14 +773,14 @@ TEST (SFM, ReconstructNViews) {
 
                     tie_points.push_back({X(0) / X(3), X(1) / X(3), X(2) / X(3)});
 
-                    Track track;
+                    phg::Track track;
                     track.img_kpt_pairs.push_back({i_camera, match.queryIdx});
                     track.img_kpt_pairs.push_back({i_camera_prev, match.trainIdx});
                     track_ids[i_camera][match.queryIdx] = tracks.size();
                     track_ids[i_camera_prev][match.trainIdx] = tracks.size();
                     tracks.push_back(track);
                 } else {
-                    Track &track = tracks[track_id];
+                    phg::Track &track = tracks[track_id];
                     track.img_kpt_pairs.push_back({i_camera, match.queryIdx});
                     track_ids[i_camera][match.queryIdx] = track_id;
                 }
@@ -803,7 +794,7 @@ TEST (SFM, ReconstructNViews) {
 
     std::vector<cv::Vec3b> tie_points_colors;
     for (int i = 0; i < (int) tie_points.size(); ++i) {
-        const Track &track = tracks[i];
+        const phg::Track &track = tracks[i];
         int img = track.img_kpt_pairs.front().first;
         int kpt = track.img_kpt_pairs.front().second;
         cv::Vec2f px = keypoints[img][kpt].pt;
